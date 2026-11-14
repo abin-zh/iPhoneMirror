@@ -174,8 +174,7 @@ internal static partial class Program
         Set("keyboardInput", (Action<Controls.PreviewKeyboardEventArgs>)(e =>
             KeyboardCall(window, "OnIndependentKeyboardInput", device.Udid, e)));
         using var preview = (Windows.NativePreviewWindow)constructor.Invoke(args);
-        // Wired/wireless touch input is admitted only in fixed or full-screen previews.
-        SetKeyboardField(preview, "_isFixed", true);
+        // The reserved drag strip keeps the picture itself controllable.
         var handle = preview.Handle;
         var foreground = KeyboardField(window, "_keyboardForegroundWindow");
         SetKeyboardField(preview, "_inputForegroundWindow", (Func<nint>)(() => handle));

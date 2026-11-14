@@ -347,12 +347,8 @@ internal static partial class Program
                 return RunInteractionRegressionTests();
             if (args is ["--preview-context-menu"])
                 return RunPreviewContextMenuTests();
-            if (args is ["--bluetooth-unfix-window-move"])
-                return RunBluetoothUnfixWindowMove();
-            if (args is ["--independent-unfix-live", var unfixOutput])
-                return RunIndependentUnfixLive(unfixOutput);
-            if (args is ["--independent-unfix-usb-supplement", var unfixSupplementOutput])
-                return RunIndependentUnfixLive(unfixSupplementOutput, allowUsbFallback: true);
+            if (args is ["--preview-drag-bar"])
+                return RunPreviewDragBarHitTest();
             if (args is ["--control-states", var controlOutput])
                 return RunControlStateAudit(controlOutput);
             if (args is ["--localization-audit"])

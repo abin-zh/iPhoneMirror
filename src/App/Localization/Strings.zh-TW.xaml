@@ -196,8 +196,6 @@
     <system:String x:Key="IndependentWindowWindowMenu">視窗</system:String>
     <system:String x:Key="IndependentWindowDisplayMenu">畫面</system:String>
     <system:String x:Key="IndependentWindowAudioMenu">音訊</system:String>
-    <system:String x:Key="IndependentWindowFix">固定視窗</system:String>
-    <system:String x:Key="IndependentWindowUnfix">取消固定</system:String>
     <system:String x:Key="IndependentWindowRemoveCorners">去除圓角</system:String>
     <system:String x:Key="IndependentWindowKeepCorners">保留圓角</system:String>
     <system:String x:Key="IndependentWindowClose">關閉</system:String>

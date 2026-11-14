@@ -22,16 +22,20 @@ internal sealed class NativePreviewWindow : IDisposable
     internal const string StableTitle = "iPhoneMirror OBS Preview";
     private static readonly HashSet<NativePreviewWindow> OpenWindows = [];
     private static int BossKeyHidden;
+    private const double DragBarHeightDips = 26;
 
     private const int WmNcCalcSize = 0x0083;
     private const int WmNcHitTest = 0x0084;
     private const int WmContextMenu = 0x007B;
-    private const int WmNcLeftButtonDoubleClick = 0x00A3;
+    private const int WmNcMouseMove = 0x00A0;
+    private const int WmNcLeftButtonDown = 0x00A1;
+    private const int WmNcMouseLeave = 0x02A2;
+    private const int WmWindowPosChanged = 0x0047;
+    private const int WmEnterSizeMove = 0x0231;
     private const int WmNcRightButtonDown = 0x00A4;
     private const int WmNcRightButtonUp = 0x00A5;
     private const int WmRightButtonDown = 0x0204;
     private const int WmRightButtonUp = 0x0205;
-    private const int WmLeftButtonDoubleClick = 0x0203;
     private const int WmClose = 0x0010;
     private const int WmEraseBackground = 0x0014;
     private const int WmMouseMove = 0x0200;
@@ -117,7 +121,6 @@ internal sealed class NativePreviewWindow : IDisposable
     private readonly MenuItem _windowMenuItem;
     private readonly MenuItem _displayMenuItem;
     private readonly MenuItem _topMostItem;
-    private readonly MenuItem _fixedItem;
     private readonly MenuItem _styleItem;
     private readonly MenuItem? _reverseControlMenuItem;
     private readonly MenuItem? _bluetoothControlItem;
@@ -161,7 +164,6 @@ internal sealed class NativePreviewWindow : IDisposable
     private bool _disposed;
     private bool _closeQueued;
     private bool _isTopMost;
-    private bool _isFixed;
     private bool _cornersEnabled = true;
     private int _rotation;
     private byte _capturedMouseButtons;
@@ -182,14 +184,20 @@ internal sealed class NativePreviewWindow : IDisposable
     {
         Interval = TimeSpan.FromMilliseconds(80),
     };
+    private readonly DispatcherTimer _dragBarHideTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(280),
+    };
+    private PreviewDragBarWindow? _dragBar;
+    private bool _dragBarVisible;
     private WindowRect _restoreRectangle;
     private nint _restoreStyle;
 
     internal bool IsFullScreen => _isFullScreen;
     private bool UsesWindowPointerControl => IsUsbControlEnabledForWindow || UsesBluetoothWindowMouse;
-    // Position-based control shares the drag surface. Unfixing gives it back to Windows,
-    // including keyboard input admitted through the global hook.
-    internal bool AllowsControlInput => !UsesWindowPointerControl || _isFixed || _isFullScreen;
+    // The reserved drag strip keeps window movement off the picture, so the
+    // whole client surface can stay available to position-based touch control.
+    internal bool AllowsControlInput => true;
     internal event Action<bool>? FullScreenChanged;
 
     private NativePreviewWindow(uint sourceWidth, uint sourceHeight, string title,
@@ -235,6 +243,7 @@ internal sealed class NativePreviewWindow : IDisposable
         _sourceWidth = sourceWidth;
         _sourceHeight = sourceHeight;
         _hoverOpacityTimer.Tick += (_, _) => UpdateHoverState(IsPointerOverPreview());
+        _dragBarHideTimer.Tick += (_, _) => HideDragBarUnlessHovered();
         _contextMenu = new ContextMenu
         {
             Style = (Style)Application.Current.FindResource("DeviceContextMenuStyle"),
@@ -247,8 +256,6 @@ internal sealed class NativePreviewWindow : IDisposable
         _windowMenuItem = new MenuItem { Style = submenuStyle };
         _topMostItem = new MenuItem { Style = itemStyle };
         _topMostItem.Click += (_, _) => ToggleTopMost();
-        _fixedItem = new MenuItem { Style = itemStyle };
-        _fixedItem.Click += (_, _) => ToggleFixedWindow();
         _styleItem = new MenuItem { Style = itemStyle };
         _styleItem.Click += (_, _) => ShowStyleSettings();
         if (_requestReverseControl is not null)
@@ -271,7 +278,6 @@ internal sealed class NativePreviewWindow : IDisposable
             _reverseControlMenuItem?.Items.Add(_wirelessControlItem);
         }
         _windowMenuItem.Items.Add(_topMostItem);
-        _windowMenuItem.Items.Add(_fixedItem);
         _windowMenuItem.Items.Add(_styleItem);
         _displayMenuItem = new MenuItem { Style = submenuStyle };
         _muteMenuItem = new MenuItem { Style = submenuStyle };
@@ -602,6 +608,7 @@ internal sealed class NativePreviewWindow : IDisposable
     internal void HideForShutdown()
     {
         if (_disposed || _handle == 0) return;
+        HideDragBar();
         _styleWindow?.Close();
         _contextMenu.IsOpen = false;
         _contextMenu.PlacementTarget = null;
@@ -613,6 +620,7 @@ internal sealed class NativePreviewWindow : IDisposable
         if (_disposed || _handle == 0) return;
         if (hidden)
         {
+            HideDragBar();
             _styleWindow?.Close();
             _contextMenu.IsOpen = false;
             _contextMenu.PlacementTarget = null;
@@ -672,10 +680,11 @@ internal sealed class NativePreviewWindow : IDisposable
     internal void ToggleFullScreen()
     {
         if (_disposed || _handle == 0) return;
+        HideDragBar();
         if (_isFullScreen)
         {
             _isFullScreen = false;
-            if (!_isFixed && UsesWindowPointerControl) ResetTouchControlInput();
+            if (UsesWindowPointerControl) ResetTouchControlInput();
             _ = RemovePropW(_handle, "iPhoneMirrorFullScreen");
             _ = SetWindowLongPtrW(_handle, GwlStyle, _restoreStyle);
             _ = SetWindowPos(_handle, 0, _restoreRectangle.Left, _restoreRectangle.Top,
@@ -760,7 +769,11 @@ internal sealed class NativePreviewWindow : IDisposable
                 _pointerInput?.Invoke(new PreviewPointerEventArgs(PreviewPointerKind.Reset, 0, 0, 0, 0));
         }
         if (message == WmActivate)
-            ActivationChanged?.Invoke((wParam.ToInt64() & 0xFFFF) != 0);
+        {
+            var active = (wParam.ToInt64() & 0xFFFF) != 0;
+            if (!active) HideDragBar();
+            ActivationChanged?.Invoke(active);
+        }
         if (WindowsAutoPlayGuard.ShouldCancel(message, _sessionHandle != 0))
         {
             handled = true;
@@ -795,12 +808,16 @@ internal sealed class NativePreviewWindow : IDisposable
         switch (message)
         {
             case WmMouseMove when IsPointerInputActive:
+                ScheduleDragBarHide();
                 if (UsesBluetoothWindowMouse) _windowMouse.TrackLeave(hwnd);
                 else lParam = DrainQueuedMouseMoves(hwnd, lParam);
                 DispatchPointer(PreviewPointerKind.Move, lParam, 0, 0,
                     NativePreviewMouse.PressedButtons(wParam));
                 handled = true;
                 return 0;
+            case WmMouseMove:
+                ScheduleDragBarHide();
+                break;
             case WmLeftButtonDown when IsPointerInputActive:
                 BeginPointerButton(hwnd, 1);
                 DispatchPointer(PreviewPointerKind.ButtonDown, lParam, 1, 0);
@@ -930,10 +947,21 @@ internal sealed class NativePreviewWindow : IDisposable
                 return 0;
             case WmNcHitTest when _managedContent is null:
                 handled = true;
-                // Input capture is temporary; do not turn it into the user's
-                // persistent "fixed window" preference when control starts.
-                return _isFullScreen || _isFixed || IsPointerInputEnabledForWindow
-                    ? HtClient : HitTestWindow(lParam);
+                return _isFullScreen ? HtClient : HitTestWindow(lParam);
+            case WmNcMouseMove when _managedContent is null && wParam.ToInt32() == HtCaption:
+                // Hovering the reserved strip is what reveals the bar; the strip
+                // already owns the caption hit test, so no click can be lost.
+                ShowDragBar();
+                break;
+            case WmNcMouseLeave when _managedContent is null:
+                ScheduleDragBarHide();
+                break;
+            case WmWindowPosChanged when _dragBarVisible:
+                _dragBar?.PositionOver(_handle);
+                break;
+            case WmEnterSizeMove when _managedContent is null:
+                HideDragBar();
+                break;
             case WmContextMenu:
             case WmRightButtonUp:
                 handled = true;
@@ -944,15 +972,6 @@ internal sealed class NativePreviewWindow : IDisposable
             case WmRightButtonDown when _managedContent is null:
                 handled = true;
                 ShowContextMenu();
-                return 0;
-            case WmNcLeftButtonDoubleClick when _managedContent is null &&
-                wParam.ToInt32() == HtCaption:
-                handled = true;
-                _source.Dispatcher.BeginInvoke(DispatcherPriority.Input, ToggleFullScreen);
-                return 0;
-            case WmLeftButtonDoubleClick:
-                handled = true;
-                _source.Dispatcher.BeginInvoke(DispatcherPriority.Input, ToggleFullScreen);
                 return 0;
             case WmEraseBackground:
                 // The native DirectComposition visual paints the complete
@@ -987,17 +1006,19 @@ internal sealed class NativePreviewWindow : IDisposable
 
         var left = x < bounds.Left + border;
         var right = x >= bounds.Right - border;
-        var top = y < bounds.Top + border;
         var bottom = y >= bounds.Bottom - border;
-        if (top && left) return HtTopLeft;
-        if (top && right) return HtTopRight;
+        // Resize grips stay on the outer rim so the picture itself never takes
+        // a drag away from the phone.
+        if (left && y < bounds.Top + border) return HtTopLeft;
+        if (right && y < bounds.Top + border) return HtTopRight;
         if (bottom && left) return HtBottomLeft;
         if (bottom && right) return HtBottomRight;
         if (left) return HtLeft;
         if (right) return HtRight;
-        if (top) return HtTop;
         if (bottom) return HtBottom;
-        return HtCaption;
+        // The reserved strip along the top edge moves the window; everything
+        // below it is touch input.
+        return y - bounds.Top < DragBarHeightPx ? HtCaption : HtClient;
     }
 
     private void QueueClose()
@@ -1029,7 +1050,7 @@ internal sealed class NativePreviewWindow : IDisposable
         _contextMenu.IsOpen = true;
         Log("independent_window_context_menu",
             ("mode", WindowMode), ("full_screen", _isFullScreen),
-            ("top_most", _isTopMost), ("fixed", _isFixed));
+            ("top_most", _isTopMost));
     }
 
     private void UpdateContextMenuLabels()
@@ -1042,9 +1063,6 @@ internal sealed class NativePreviewWindow : IDisposable
         _displayMenuItem.Header = LocalizationService.Get("IndependentWindowDisplayMenu");
         _topMostItem.Header = LocalizationService.Get(
             _isTopMost ? "IndependentWindowUnpin" : "IndependentWindowPin");
-        _fixedItem.Header = LocalizationService.Get(
-            _isFixed ? "IndependentWindowUnfix" : "IndependentWindowFix");
-        _fixedItem.IsEnabled = !_isFullScreen;
         if (_reverseControlMenuItem is not null)
         {
             _reverseControlMenuItem.Header = LocalizationService.Get(
@@ -1254,21 +1272,86 @@ internal sealed class NativePreviewWindow : IDisposable
             ("mode", WindowMode), ("enabled", _isTopMost));
     }
 
-    private void ToggleFixedWindow()
+    private int DragBarHeightPx
+    {
+        get
+        {
+            var dpi = GetDpiForWindow(_handle);
+            return Math.Max(1, (int)Math.Round(
+                DragBarHeightDips * (dpi == 0 ? 1.0 : dpi / 96.0)));
+        }
+    }
+
+    private bool DragBarAvailable => !_disposed && _handle != 0 &&
+        _managedContent is null && !_isFullScreen && BossKeyHidden == 0 &&
+        IsWindowVisible(_handle);
+
+    private void ShowDragBar()
+    {
+        if (!DragBarAvailable) return;
+        // Keep the timer running while the bar is up: it is also the safety net
+        // for a pointer that leaves without a tracked mouse-leave message.
+        _dragBarHideTimer.Start();
+        if (_dragBar is null)
+        {
+            _dragBar = new PreviewDragBarWindow(() => _handle, BeginDragFromBar,
+                ToggleFullScreen, () => _isFullScreen, _logDiagnostic);
+            _dragBar.HoverEntered += OnDragBarHoverEntered;
+            _dragBar.HoverLeft += OnDragBarHoverLeft;
+        }
+        _dragBar.ShowOver(_handle);
+        _dragBarVisible = true;
+    }
+
+    private void HideDragBar()
+    {
+        // Interaction tests build uninitialized instances for message routing,
+        // so this path must tolerate a missing timer.
+        _dragBarHideTimer?.Stop();
+        _dragBarVisible = false;
+        _dragBar?.HideBar();
+    }
+
+    private void OnDragBarHoverEntered() => _dragBarHideTimer.Start();
+
+    private void OnDragBarHoverLeft() => ScheduleDragBarHide();
+
+    private void ScheduleDragBarHide()
+    {
+        if (_dragBarVisible) _dragBarHideTimer.Start();
+    }
+
+    private void HideDragBarUnlessHovered()
+    {
+        if (!_dragBarVisible) return;
+        if (IsCursorOverDragBar()) return;
+        HideDragBar();
+    }
+
+    private bool IsCursorOverDragBar()
+    {
+        if (_handle == 0 || !GetCursorPos(out var point)) return false;
+        if (_dragBar?.ContainsScreenPoint(point.X, point.Y) == true) return true;
+        var client = new NativePoint { X = point.X, Y = point.Y };
+        if (!ScreenToClient(_handle, ref client)) return false;
+        return client.X >= 0 && client.Y >= 0 && client.Y < DragBarHeightPx;
+    }
+
+    /// <summary>
+    /// Starts the system move loop for the reserved drag strip. The move loop is
+    /// modal, so every phone-side contact is released first.
+    /// </summary>
+    internal void BeginDragFromBar()
     {
         if (_disposed || _handle == 0 || _isFullScreen) return;
-        _isFixed = !_isFixed;
-        if (!_isFixed && UsesWindowPointerControl)
-            ResetTouchControlInput();
-        var style = GetWindowLongPtrW(_handle, GwlStyle).ToInt64();
-        style = _isFixed ? style & ~WsThickFrame : style | WsThickFrame;
-        _ = SetWindowLongPtrW(_handle, GwlStyle, (nint)style);
-        _ = SetWindowPos(_handle, 0, 0, 0, 0, 0,
-            SwpNoSize | SwpNoMove | SwpNoZOrder | SwpNoActivate | SwpFrameChanged);
-        if (!_isFixed) _aspectController.Reflow();
-        UpdateContextMenuLabels();
-        Log("independent_window_fixed",
-            ("mode", WindowMode), ("enabled", _isFixed));
+        HideDragBar();
+        if (UsesWindowPointerControl) ResetTouchControlInput();
+        _ = SetForegroundWindow(_handle);
+        if (!GetCursorPos(out var point)) return;
+        _ = ReleaseCapture();
+        var packed = ((long)(point.Y & 0xFFFF) << 16) | (uint)(point.X & 0xFFFF);
+        _ = SendMessageW(_handle, WmNcLeftButtonDown, HtCaption, (nint)packed);
+        if (DragBarAvailable && IsCursorOverDragBar()) ShowDragBar();
     }
 
     private void ResetTouchControlInput()
@@ -1353,16 +1436,17 @@ internal sealed class NativePreviewWindow : IDisposable
     internal void PrepareForUsbControl()
     {
         if (_disposed || _handle == 0) return;
-        if (!_isFixed) ToggleFixedWindow();
         if (!_isTopMost) ToggleTopMost();
         _ = SetForegroundWindow(_handle);
+        HideDragBar();
         UpdateContextMenuLabels();
     }
 
     internal void PrepareForBluetoothControl()
     {
-        if (_disposed || _handle == 0 || !UsesBluetoothWindowMouse) return;
-        if (!_isFixed && !_isFullScreen) ToggleFixedWindow();
+        if (_disposed || _handle == 0) return;
+        _ = SetForegroundWindow(_handle);
+        HideDragBar();
     }
 
     internal void ReleasePointerCapture()
@@ -1457,6 +1541,10 @@ internal sealed class NativePreviewWindow : IDisposable
             ("full_screen", _isFullScreen));
         _disposed = true;
         _hoverOpacityTimer.Stop();
+        _dragBarHideTimer.Stop();
+        _dragBar?.Close();
+        _dragBar = null;
+        _dragBarVisible = false;
         OpenWindows.Remove(this);
         ThemeService.ThemeChanged -= OnThemeChanged;
         _styleWindow?.Close();
@@ -1525,6 +1613,17 @@ internal sealed class NativePreviewWindow : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(nint hwnd);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        internal int X;
+        internal int Y;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ScreenToClient(nint hwnd, ref NativePoint point);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct WindowRect

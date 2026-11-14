@@ -394,24 +394,20 @@ internal static partial class Program
             var y = ((int)KeyboardField(rect, "Top") + (int)KeyboardField(rect, "Bottom")) / 2;
             var point = (nint)((y << 16) | (x & 0xFFFF));
             nint Hit() => (nint)KeyboardCall(shell, "WindowProcedure", shell.Handle, 0x84, (nint)0, point, false)!;
-            Require(!(bool)KeyboardField(shell, "_isFixed") && Hit() == 1,
-                "starting Bluetooth persisted the fixed preference or left a draggable input surface.");
+            Require(Hit() == 1,
+                "the independent control surface must stay a client area without a fix step.");
             typeof(NativePreviewWindow).GetMethod("SetCapture", BindingFlags.NonPublic | BindingFlags.Static)!
                 .Invoke(null, [shell.Handle]);
             SetKeyboardField(shell, "_capturedMouseButtons", (byte)1);
             Toggle();
-            Require(Hit() == 2 && (byte)KeyboardField(shell, "_capturedMouseButtons") == 0 &&
+            Require(Hit() == 1 && (byte)KeyboardField(shell, "_capturedMouseButtons") == 0 &&
                 (nint)typeof(NativePreviewWindow).GetMethod("GetCapture", BindingFlags.NonPublic | BindingFlags.Static)!
                     .Invoke(null, null)! != shell.Handle,
-                "pausing did not restore caption dragging or release native mouse capture.");
-            KeyboardCall(shell, "ToggleFixedWindow");
-            Require(Hit() == 1, "explicitly fixed window became draggable.");
+                "pausing did not release native mouse capture.");
             Toggle(); Toggle();
-            Require((bool)KeyboardField(shell, "_isFixed") && Hit() == 1,
-                "pause/resume changed the user's fixed preference.");
-            KeyboardCall(shell, "ToggleFixedWindow");
-            Require(Hit() == 2, "unfixing a paused independent window did not restore dragging.");
-            Console.WriteLine("PASS independent Bluetooth window: temporary input hit-testing, restored caption dragging/capture, explicit fixed preference retained.");
+            Require(Hit() == 1,
+                "pause/resume changed the control surface layout.");
+            Console.WriteLine("PASS independent Bluetooth window: capture released on pause, client surface retained.");
             Toggle();
             TestBluetoothWindowMenus(shell);
             SetKeyboardField(main, "_controlPointerFlushInFlight", 1);
