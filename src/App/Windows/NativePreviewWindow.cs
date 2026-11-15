@@ -22,7 +22,9 @@ internal sealed class NativePreviewWindow : IDisposable
     internal const string StableTitle = "iPhoneMirror OBS Preview";
     private static readonly HashSet<NativePreviewWindow> OpenWindows = [];
     private static int BossKeyHidden;
-    private const double DragBarHeightDips = 26;
+    // The bar itself floats above the picture; only this thin band inside the
+    // client area stays reserved as its hover/drag sensor.
+    private const double DragStripHeightDips = 14;
 
     private const int WmNcCalcSize = 0x0083;
     private const int WmNcHitTest = 0x0084;
@@ -92,6 +94,7 @@ internal sealed class NativePreviewWindow : IDisposable
 
     private const int SwHide = 0;
     private const int SwShow = 5;
+    private const int SwMinimize = 6;
     private const int SwRestore = 9;
     private const uint SwpNoSize = 0x0001;
     private const uint SwpNoMove = 0x0002;
@@ -1018,7 +1021,7 @@ internal sealed class NativePreviewWindow : IDisposable
         if (bottom) return HtBottom;
         // The reserved strip along the top edge moves the window; everything
         // below it is touch input.
-        return y - bounds.Top < DragBarHeightPx ? HtCaption : HtClient;
+        return y - bounds.Top < DragStripHeightPx ? HtCaption : HtClient;
     }
 
     private void QueueClose()
@@ -1272,13 +1275,13 @@ internal sealed class NativePreviewWindow : IDisposable
             ("mode", WindowMode), ("enabled", _isTopMost));
     }
 
-    private int DragBarHeightPx
+    private int DragStripHeightPx
     {
         get
         {
             var dpi = GetDpiForWindow(_handle);
             return Math.Max(1, (int)Math.Round(
-                DragBarHeightDips * (dpi == 0 ? 1.0 : dpi / 96.0)));
+                DragStripHeightDips * (dpi == 0 ? 1.0 : dpi / 96.0)));
         }
     }
 
@@ -1295,7 +1298,7 @@ internal sealed class NativePreviewWindow : IDisposable
         if (_dragBar is null)
         {
             _dragBar = new PreviewDragBarWindow(() => _handle, BeginDragFromBar,
-                ToggleFullScreen, () => _isFullScreen, _logDiagnostic);
+                MinimizeFromBar, ToggleFullScreen, CloseFromBar, _logDiagnostic);
             _dragBar.HoverEntered += OnDragBarHoverEntered;
             _dragBar.HoverLeft += OnDragBarHoverLeft;
         }
@@ -1334,7 +1337,7 @@ internal sealed class NativePreviewWindow : IDisposable
         if (_dragBar?.ContainsScreenPoint(point.X, point.Y) == true) return true;
         var client = new NativePoint { X = point.X, Y = point.Y };
         if (!ScreenToClient(_handle, ref client)) return false;
-        return client.X >= 0 && client.Y >= 0 && client.Y < DragBarHeightPx;
+        return client.X >= 0 && client.Y >= 0 && client.Y < DragStripHeightPx;
     }
 
     /// <summary>
@@ -1352,6 +1355,21 @@ internal sealed class NativePreviewWindow : IDisposable
         var packed = ((long)(point.Y & 0xFFFF) << 16) | (uint)(point.X & 0xFFFF);
         _ = SendMessageW(_handle, WmNcLeftButtonDown, HtCaption, (nint)packed);
         if (DragBarAvailable && IsCursorOverDragBar()) ShowDragBar();
+    }
+
+    internal void MinimizeFromBar()
+    {
+        if (_disposed || _handle == 0) return;
+        HideDragBar();
+        _ = ShowWindow(_handle, SwMinimize);
+        Log("independent_window_minimized", ("mode", WindowMode));
+    }
+
+    internal void CloseFromBar()
+    {
+        if (_disposed || _handle == 0) return;
+        HideDragBar();
+        QueueClose();
     }
 
     private void ResetTouchControlInput()

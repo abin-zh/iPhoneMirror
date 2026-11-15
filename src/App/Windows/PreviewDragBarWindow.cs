@@ -4,17 +4,18 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Shapes;
-using IPhoneMirror.App.Localization;
 using IPhoneMirror.App.Services;
 
 namespace IPhoneMirror.App.Windows;
 
 /// <summary>
-/// Slim hover-revealed title bar for the borderless DirectComposition preview.
-/// The preview HWND cannot host WPF content (WS_EX_NOREDIRECTIONBITMAP), so the
-/// bar is an owned, non-activating window that drives the preview through
-/// Win32 messages instead of owning any of its own window state.
+/// Windows 11 style title bar for the borderless DirectComposition preview.
+/// The preview HWND cannot host WPF content (WS_EX_NOREDIRECTIONBITMAP) and its
+/// rounded corners live inside the client area, so the bar is an owned,
+/// non-activating window that floats just above the picture and drives the
+/// preview through Win32 messages.
 /// </summary>
 internal sealed class PreviewDragBarWindow : Window
 {
@@ -26,28 +27,45 @@ internal sealed class PreviewDragBarWindow : Window
     private const uint SwpNoActivate = 0x0010;
     private const uint SwpNoZOrder = 0x0004;
     private const uint SwpShowWindow = 0x0040;
-    private const double BarHeightDips = 26;
+    private const uint MonitorDefaultToNearest = 2;
+    private const double BarHeightDips = 32;
+    private const double BarGapDips = 8;
+    private const double ButtonWidthDips = 38;
+    private const double ButtonHeightDips = 28;
+    private static readonly TimeSpan ShowDuration = TimeSpan.FromMilliseconds(160);
+    private static readonly TimeSpan HideDuration = TimeSpan.FromMilliseconds(90);
 
     private static readonly Brush BarBackground = Frozen(new SolidColorBrush(
-        Color.FromArgb(0xE6, 0x1B, 0x1C, 0x1E)));
-    private static readonly Brush ButtonHoverBackground = Frozen(new SolidColorBrush(
-        Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)));
+        Color.FromArgb(0xF2, 0x20, 0x20, 0x20)));
+    private static readonly Brush BarBorder = Frozen(new SolidColorBrush(
+        Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF)));
+    private static readonly Brush ButtonHover = Frozen(new SolidColorBrush(
+        Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)));
+    private static readonly Brush CloseHover = Frozen(new SolidColorBrush(
+        Color.FromRgb(0xC4, 0x2B, 0x1C)));
     private static readonly Brush IconBrush = Frozen(new SolidColorBrush(
+        Color.FromArgb(0xF0, 0xFF, 0xFF, 0xFF)));
+    private static readonly Brush GlyphStroke = Frozen(new SolidColorBrush(
         Color.FromArgb(0xF0, 0xFF, 0xFF, 0xFF)));
 
     private readonly Func<nint> _ownerHandle;
     private readonly Action _drag;
-    private readonly Func<bool> _isFullScreen;
+    private readonly Action _minimize;
+    private readonly Action _close;
     private readonly Action<string>? _log;
+    private readonly Border _surface;
+    private readonly TranslateTransform _slide = new();
     private readonly Border _fullScreenButton;
     private nint _handle;
+    private bool _hiding;
 
-    internal PreviewDragBarWindow(Func<nint> ownerHandle, Action drag,
-        Action toggleFullScreen, Func<bool> isFullScreen, Action<string>? log = null)
+    internal PreviewDragBarWindow(Func<nint> ownerHandle, Action drag, Action minimize,
+        Action toggleFullScreen, Action close, Action<string>? log = null)
     {
         _ownerHandle = ownerHandle;
         _drag = drag;
-        _isFullScreen = isFullScreen;
+        _minimize = minimize;
+        _close = close;
         _log = log;
 
         Title = "iPhoneMirror preview bar";
@@ -75,64 +93,52 @@ internal sealed class PreviewDragBarWindow : Window
         dragArea.MouseEnter += (_, _) => HoverEntered?.Invoke();
         dragArea.MouseLeave += (_, _) => HoverLeft?.Invoke();
 
-        _fullScreenButton = new Border
+        var minimizeButton = CreateCaptionButton(CaptionGlyphKind.Minimize, hoverOnClose: false);
+        minimizeButton.MouseLeftButtonUp += (_, e) =>
         {
-            Width = 26,
-            Height = 20,
-            Margin = new Thickness(2, 0, 5, 0),
-            CornerRadius = new CornerRadius(5),
-            Background = Brushes.Transparent,
-            Cursor = Cursors.Hand,
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = new Path
-            {
-                // Four corner brackets; no icon-font dependency.
-                Data = Geometry.Parse(
-                    "M0,5 L0,0 L5,0 M11,0 L16,0 L16,5 M16,11 L16,16 L11,16 M5,16 L0,16 L0,11"),
-                Stroke = IconBrush,
-                StrokeThickness = 1.4,
-                StrokeStartLineCap = PenLineCap.Round,
-                StrokeEndLineCap = PenLineCap.Round,
-                Stretch = Stretch.None,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-            },
+            e.Handled = true;
+            _minimize();
         };
-        _fullScreenButton.MouseEnter += (_, _) =>
-        {
-            _fullScreenButton.Background = ButtonHoverBackground;
-            HoverEntered?.Invoke();
-        };
-        _fullScreenButton.MouseLeave += (_, _) =>
-        {
-            _fullScreenButton.Background = Brushes.Transparent;
-            HoverLeft?.Invoke();
-        };
+
+        _fullScreenButton = CreateCaptionButton(CaptionGlyphKind.FullScreen, hoverOnClose: false);
         _fullScreenButton.MouseLeftButtonUp += (_, e) =>
         {
             e.Handled = true;
             toggleFullScreen();
-            RefreshTooltip();
         };
-        RefreshTooltip();
+
+        var closeButton = CreateCaptionButton(CaptionGlyphKind.Close, hoverOnClose: true);
+        closeButton.MouseLeftButtonUp += (_, e) =>
+        {
+            e.Handled = true;
+            _close();
+        };
 
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition
         {
             Width = new GridLength(1, GridUnitType.Star),
         });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.Children.Add(dragArea);
-        Grid.SetColumn(_fullScreenButton, 1);
-        grid.Children.Add(_fullScreenButton);
+        foreach (var (button, index) in new[] { minimizeButton, _fullScreenButton, closeButton }
+            .Select((button, index) => (button, index)))
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(button, index + 1);
+            grid.Children.Add(button);
+        }
 
-        Content = new Border
+        _surface = new Border
         {
             Background = BarBackground,
-            CornerRadius = new CornerRadius(7),
+            BorderBrush = BarBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
             ClipToBounds = true,
             Child = grid,
+            RenderTransform = _slide,
         };
+        Content = _surface;
         Width = 320;
         Height = BarHeightDips;
 
@@ -140,6 +146,13 @@ internal sealed class PreviewDragBarWindow : Window
         if (owner != 0) _ = new WindowInteropHelper(this) { Owner = owner };
         SourceInitialized += OnSourceInitialized;
         Log("drag_bar_created");
+    }
+
+    private enum CaptionGlyphKind
+    {
+        Minimize,
+        FullScreen,
+        Close,
     }
 
     internal event Action? HoverEntered;
@@ -151,23 +164,64 @@ internal sealed class PreviewDragBarWindow : Window
         return brush;
     }
 
-    private void RefreshTooltip()
+    private static Border CreateCaptionButton(CaptionGlyphKind kind, bool hoverOnClose)
     {
-        _fullScreenButton.ToolTip = LocalizationService.Get(
-            _isFullScreen()
-                ? "IndependentWindowExitFullScreen"
-                : "IndependentWindowEnterFullScreen");
+        var stroke = kind == CaptionGlyphKind.Close ? GlyphStroke : IconBrush;
+        var geometry = kind switch
+        {
+            CaptionGlyphKind.Minimize => Geometry.Parse("M0,5 L10,5"),
+            CaptionGlyphKind.Close => Geometry.Parse("M0.5,0.5 L9.5,9.5 M9.5,0.5 L0.5,9.5"),
+            _ => Geometry.Parse("M0.5,0.5 L9.5,0.5 L9.5,9.5 L0.5,9.5 Z"),
+        };
+        var glyph = new Path
+        {
+            Data = geometry,
+            Stroke = stroke,
+            StrokeThickness = kind == CaptionGlyphKind.Minimize ? 1.2 : 1.0,
+            StrokeLineJoin = PenLineJoin.Miter,
+            Stretch = Stretch.None,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            SnapsToDevicePixels = true,
+        };
+        var button = new Border
+        {
+            Width = ButtonWidthDips,
+            Height = ButtonHeightDips,
+            CornerRadius = new CornerRadius(5),
+            Background = Brushes.Transparent,
+            Cursor = Cursors.Hand,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = glyph,
+        };
+        button.MouseEnter += (_, _) =>
+        {
+            button.Background = hoverOnClose ? CloseHover : ButtonHover;
+            if (hoverOnClose) glyph.Stroke = Brushes.White;
+        };
+        button.MouseLeave += (_, _) =>
+        {
+            button.Background = Brushes.Transparent;
+            if (hoverOnClose) glyph.Stroke = GlyphStroke;
+        };
+        return button;
     }
 
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
         _handle = new WindowInteropHelper(this).Handle;
         if (_handle == 0) return;
+        ApplyNonActivatingStyle();
+        HwndSource.FromHwnd(_handle)?.AddHook(WindowProcedure);
+        Log("drag_bar_source_initialized");
+    }
+
+    private void ApplyNonActivatingStyle()
+    {
+        if (_handle == 0) return;
         var style = GetWindowLongPtrW(_handle, GwlExStyle).ToInt64();
         _ = SetWindowLongPtrW(_handle, GwlExStyle,
             (nint)(style | WsExNoActivate | WsExToolWindow));
-        HwndSource.FromHwnd(_handle)?.AddHook(WindowProcedure);
-        Log("drag_bar_source_initialized");
     }
 
     private nint WindowProcedure(nint hwnd, int message, nint wParam, nint lParam,
@@ -180,7 +234,11 @@ internal sealed class PreviewDragBarWindow : Window
         return MaNoActivate;
     }
 
-    /// <summary>Aligns the bar with the current preview bounds, in physical pixels.</summary>
+    /// <summary>
+    /// Aligns the bar just above the picture, in physical pixels. When the
+    /// preview is already touching the top of its work area the bar drops back
+    /// inside the window so it can never end up off-screen.
+    /// </summary>
     internal void PositionOver(nint owner)
     {
         if (owner == 0) return;
@@ -193,33 +251,69 @@ internal sealed class PreviewDragBarWindow : Window
         if (!GetWindowRect(owner, out var bounds)) return;
         var dpi = GetDpiForWindow(owner);
         var scale = dpi == 0 ? 1.0 : dpi / 96.0;
-        var inset = Math.Max(0, (int)Math.Round(2 * scale));
         var height = Math.Max(1, (int)Math.Round(BarHeightDips * scale));
-        var width = Math.Max(1, bounds.Right - bounds.Left - inset * 2);
-        _ = SetWindowPos(_handle, 0, bounds.Left + inset, bounds.Top + inset,
-            width, height, SwpNoActivate | SwpNoZOrder | SwpShowWindow);
+        var gap = Math.Max(1, (int)Math.Round(BarGapDips * scale));
+        var width = Math.Max(1, bounds.Right - bounds.Left);
+        var top = bounds.Top - height - gap;
+        var monitor = MonitorFromWindow(owner, MonitorDefaultToNearest);
+        var info = new MonitorInfo { Size = (uint)Marshal.SizeOf<MonitorInfo>() };
+        if (monitor != 0 && GetMonitorInfoW(monitor, ref info))
+        {
+            var limit = info.WorkArea.Top;
+            if (top < limit) top = Math.Min(bounds.Top, limit);
+        }
+        else if (top < 0)
+        {
+            top = Math.Max(0, bounds.Top);
+        }
+        _ = SetWindowPos(_handle, 0, bounds.Left, top, width, height,
+            SwpNoActivate | SwpNoZOrder | SwpShowWindow);
     }
 
     internal void ShowOver(nint owner)
     {
         if (owner == 0) return;
-        if (!IsVisible) Show();
-        // Show() may activate on some shell configurations; reassert the style
-        // and jump straight back to the preview's z-order band.
-        if (_handle != 0)
-        {
-            var style = GetWindowLongPtrW(_handle, GwlExStyle).ToInt64();
-            _ = SetWindowLongPtrW(_handle, GwlExStyle,
-                (nint)(style | WsExNoActivate | WsExToolWindow));
-        }
+        _hiding = false;
         PositionOver(owner);
+        if (IsVisible) return;
+        Show();
+        ApplyNonActivatingStyle();
+        PositionOver(owner);
+        AnimateIn();
         Log("drag_bar_shown");
+    }
+
+    private void AnimateIn()
+    {
+        BeginAnimation(OpacityProperty, null);
+        _slide.BeginAnimation(TranslateTransform.YProperty, null);
+        Opacity = 0;
+        _slide.Y = -8;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, ShowDuration)
+        {
+            EasingFunction = ease,
+        });
+        _slide.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(-8, 0, ShowDuration) { EasingFunction = ease });
     }
 
     internal void HideBar()
     {
-        if (!IsVisible) return;
-        Hide();
+        if (!IsVisible || _hiding) return;
+        _hiding = true;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+        var fade = new DoubleAnimation(Opacity, 0, HideDuration) { EasingFunction = ease };
+        fade.Completed += (_, _) =>
+        {
+            _hiding = false;
+            Hide();
+            BeginAnimation(OpacityProperty, null);
+            Opacity = 1;
+            _slide.BeginAnimation(TranslateTransform.YProperty, null);
+            _slide.Y = 0;
+        };
+        BeginAnimation(OpacityProperty, fade);
         Log("drag_bar_hidden");
     }
 
@@ -266,6 +360,13 @@ internal sealed class PreviewDragBarWindow : Window
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(nint hwnd);
 
+    [DllImport("user32.dll")]
+    private static extern nint MonitorFromWindow(nint hwnd, uint flags);
+
+    [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetMonitorInfoW(nint monitor, ref MonitorInfo info);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct WindowRect
     {
@@ -273,5 +374,14 @@ internal sealed class PreviewDragBarWindow : Window
         internal int Top;
         internal int Right;
         internal int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MonitorInfo
+    {
+        internal uint Size;
+        internal WindowRect Monitor;
+        internal WindowRect WorkArea;
+        internal uint Flags;
     }
 }
