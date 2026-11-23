@@ -5,7 +5,12 @@ All notable changes to iPhoneMirror are documented here. The project follows
 
 ## [Unreleased]
 
-No unreleased changes recorded yet.
+### Changed
+
+- Independent preview windows now use a hover-revealed drag bar instead of a fixed/unfixed toggle: dragging the bar moves the window, its right-hand button toggles full screen, and the picture area stays available to reverse control.
+- Double-clicking the independent preview no longer toggles full screen; the drag bar button owns that action.
+- Remove the "Lock window"/"Unlock window" menu items and their localization keys.
+- The drag bar now floats above the rounded picture with a slide-in animation and Windows 11 style minimize, full-screen and close buttons.
 
 ## [1.8.5-pre5] - 2026-11-12
 

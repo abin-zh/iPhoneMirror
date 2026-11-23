@@ -196,8 +196,6 @@
     <system:String x:Key="IndependentWindowWindowMenu">ウィンドウ</system:String>
     <system:String x:Key="IndependentWindowDisplayMenu">映像</system:String>
     <system:String x:Key="IndependentWindowAudioMenu">音声</system:String>
-    <system:String x:Key="IndependentWindowFix">ウィンドウを固定</system:String>
-    <system:String x:Key="IndependentWindowUnfix">ウィンドウの固定を解除</system:String>
     <system:String x:Key="IndependentWindowRemoveCorners">角丸を無効にする</system:String>
     <system:String x:Key="IndependentWindowKeepCorners">角丸を有効にする</system:String>
     <system:String x:Key="IndependentWindowClose">閉じる</system:String>

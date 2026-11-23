@@ -15,8 +15,6 @@ internal static partial class Program
         var forwarded = new List<PreviewPointerEventArgs>();
         var pointer = KeyboardField(shell, "_pointerInput");
         var foreground = KeyboardField(shell, "_inputForegroundWindow");
-        var wasFixed = (bool)KeyboardField(shell, "_isFixed");
-        if (!wasFixed) KeyboardCall(shell, "ToggleFixedWindow");
         SetKeyboardField(shell, "_inputForegroundWindow", (Func<nint>)(() => shell.Handle));
         SetKeyboardField(shell, "_pointerInput", (Action<PreviewPointerEventArgs>)(e => forwarded.Add(e)));
         var position = (nint)((150 << 16) | 75);
@@ -44,18 +42,15 @@ internal static partial class Program
             }
             shell.BluetoothWindowMouseEnabled = true;
             forwarded.Clear();
+            var wasFullScreen = (bool)KeyboardField(shell, "_isFullScreen")!;
             Message(0x0203);
             AdvanceDispatcher(TimeSpan.FromMilliseconds(50));
-            MappingAssert((bool)KeyboardField(shell, "_isFullScreen") && forwarded.All(e => e.Kind != PreviewPointerKind.ButtonDown),
-                "Absolute Bluetooth double-click should enter full screen like wired/wireless, without forwarding a second device press.");
-            Message(0x0203);
-            AdvanceDispatcher(TimeSpan.FromMilliseconds(50));
-            MappingAssert(!(bool)KeyboardField(shell, "_isFullScreen"), "Double-click did not leave full screen.");
+            MappingAssert((bool)KeyboardField(shell, "_isFullScreen")! == wasFullScreen,
+                "Double-click must no longer toggle full screen; the drag bar owns that action now.");
         }
         finally
         {
             shell.BluetoothWindowMouseEnabled = false;
-            if (!wasFixed) KeyboardCall(shell, "ToggleFixedWindow");
             menu.IsOpen = false;
             SetKeyboardField(shell, "_pointerInput", pointer);
             SetKeyboardField(shell, "_inputForegroundWindow", foreground);

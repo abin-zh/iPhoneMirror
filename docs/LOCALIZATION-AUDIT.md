@@ -643,7 +643,6 @@
 | IndependentWindowDisplayMenu | 画面 | 畫面 | 畫面 | Image | 映像 | ✅ 完全一致 | 保留 |
 | IndependentWindowEnterFullScreen | 进入全屏 | 進入全螢幕 | 進入全螢幕 | Enter full screen | 全画面にする | ✅ 完全一致 | 保留 |
 | IndependentWindowExitFullScreen | 退出全屏 | 離開全螢幕 | 離開全螢幕 | Exit full screen | 全画面を終了 | ✅ 完全一致 | 保留 |
-| IndependentWindowFix | 固定窗口 | 固定視窗 | 固定視窗 | Lock window | ウィンドウを固定 | ✅ 完全一致 | 保留 |
 | IndependentWindowImageSettings | 调节画面 | 調節畫面 | 調節畫面 | Adjust image | 映像を調整 | ✅ 完全一致 | 保留 |
 | IndependentWindowKeepCorners | 保留圆角 | 保留圓角 | 保留圓角 | Keep rounded corners | 角丸を有効にする | ✅ 完全一致 | 保留 |
 | IndependentWindowMute | 静音 | 靜音 | 靜音 | Mute | ミュート | ✅ 完全一致 | 保留；静态未发现引用，保留待后续调用核对 |
@@ -665,7 +664,6 @@
 | IndependentWindowStyle | 样式 | 樣式 | 樣式 | Style | スタイル | ✅ 完全一致 | 保留 |
 | IndependentWindowStyleSubtitle | 实时调整，仅应用于当前独立窗口。 | 即時調整，只套用至目前獨立視窗。 | 即時調整，只套用至目前獨立視窗。 | Changes apply immediately to this window only. | 変更はこのウィンドウにだけ、すぐに反映されます。 | ✅ 完全一致 | 保留 |
 | IndependentWindowStyleTitle | 独立窗口样式 | 獨立視窗樣式 | 獨立視窗樣式 | Independent window style | 独立ウィンドウのスタイル | ✅ 完全一致 | 保留 |
-| IndependentWindowUnfix | 取消固定 | 取消固定 | 取消固定 | Unlock window | ウィンドウの固定を解除 | ✅ 完全一致 | 保留 |
 | IndependentWindowUnmuteThis | 取消静音该窗口 | 取消靜音該視窗 | 取消靜音該視窗 | Unmute this window | このウィンドウのミュートを解除 | ✅ 完全一致 | 保留 |
 | IndependentWindowUnpin | 取消置顶 | 取消置頂 | 取消最上層顯示 | Disable always on top | 常に手前に表示を解除 | ✅ 完全一致 | 保留 |
 | IndependentWindowWindowMenu | 窗口 | 視窗 | 視窗 | Window | ウィンドウ | ✅ 完全一致 | 保留 |
