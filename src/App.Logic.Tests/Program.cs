@@ -5631,6 +5631,15 @@ Equal(UsbProjectionMode.AirPlay, deviceA.UsbProjectionMode,
     "device A keeps its independent USB projection mode");
 Equal(UsbProjectionMode.Aisi, deviceB.UsbProjectionMode,
     "device B keeps its independent USB projection mode");
+Equal(true, deviceA.RequestDeviceAudio,
+    "wired capture keeps sending phone audio to Windows by default");
+var keepPhoneAudio = DeviceVideoPreferences.From(deviceA) with { RequestDeviceAudio = false };
+keepPhoneAudio.Apply(deviceB);
+Equal(false, deviceB.RequestDeviceAudio,
+    "phone-audio mode persists and restores per device");
+Equal(true, new DeviceVideoPreferences(1280, 720, 60, DecoderPreference.Auto)
+        .RequestDeviceAudio,
+    "preferences without an explicit phone-audio value keep PC audio");
 Equal(DecoderPreference.Auto, deviceA.DecoderPreference,
     "decoder selection defaults to capability-based automatic fallback");
 Equal(0.0, deviceA.Brightness, "brightness defaults to neutral");

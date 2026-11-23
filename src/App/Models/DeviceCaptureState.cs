@@ -28,6 +28,9 @@ internal sealed class DeviceCaptureState
     internal uint RenderHeight { get; set; }
     internal int FrameRate { get; set; } = 60;
     internal bool PlayAudio { get; set; } = true;
+    // Wired only: skip QuickTime audio negotiation so iOS keeps its own audio
+    // route (AirPods). The PC then receives no source audio.
+    internal bool RequestDeviceAudio { get; set; } = true;
     internal double Volume { get; set; } = 100;
     internal uint AdvancedUsbWidth { get; set; }
     internal uint AdvancedUsbHeight { get; set; }

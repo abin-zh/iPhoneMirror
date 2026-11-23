@@ -257,6 +257,7 @@ internal struct NativeCaptureOptions
     public int PlayAudio;
     public float AudioVolume;
     [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)] public uint[] Reserved;
+    public int SkipDeviceAudio;
 }
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -834,18 +835,20 @@ internal sealed class NativeCore : IDisposable
     public NativeSessionCreateResult CreateDeviceSession(string udid,
         uint width, uint height, uint fps, bool playAudio, double volume,
         uint usbWidth = 0, uint usbHeight = 0, uint usbProjectionMode = 0,
-        uint decoderPreference = 0, uint colorOutputPreference = 0)
+        uint decoderPreference = 0, uint colorOutputPreference = 0,
+        bool requestDeviceAudio = true)
     {
         var options = new NativeCaptureOptions
         {
             StructSize = (uint)Marshal.SizeOf<NativeCaptureOptions>(),
-            ApiVersion = 18,
+            ApiVersion = 19,
             RequestedWidth = width,
             RequestedHeight = height,
             TargetFps = fps,
             PlayAudio = playAudio ? 1 : 0,
             AudioVolume = Math.Clamp((float)volume, 0, 1),
             Reserved = new uint[5],
+            SkipDeviceAudio = requestDeviceAudio ? 0 : 1,
         };
         options.Reserved[0] = usbWidth;
         options.Reserved[1] = usbHeight;
@@ -866,7 +869,7 @@ internal sealed class NativeCore : IDisposable
         var options = new NativeCaptureOptions
         {
             StructSize = (uint)Marshal.SizeOf<NativeCaptureOptions>(),
-            ApiVersion = 18,
+            ApiVersion = 19,
             RequestedWidth = width,
             RequestedHeight = height,
             TargetFps = fps,

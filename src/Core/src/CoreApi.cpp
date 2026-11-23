@@ -456,6 +456,7 @@ bool valid_image_adjustments(float brightness, float contrast,
 bool valid_capture_option_extensions(const iPhoneMirror::CaptureOptions& options) noexcept {
     return options.reserved[2] <= 2 && options.reserved[3] <= 2 &&
         options.reserved[4] <= 2 &&
+        (options.skip_device_audio == 0 || options.skip_device_audio == 1) &&
         valid_video_preferences(options.reserved[0], options.reserved[1], 0);
 }
 
@@ -475,6 +476,7 @@ iPhoneMirror::capture::CapturePreferences preferences_from_options(
             options.reserved[3]),
         .color_output_preference = static_cast<iPhoneMirror::media::ColorOutputPreference>(
             options.reserved[4]),
+        .request_device_audio = options.skip_device_audio == 0,
     };
 }
 
@@ -489,10 +491,11 @@ std::int32_t start_capture_locked(const wchar_t* udid,
     try {
         const auto serial = narrow(udid);
         iPhoneMirror::logging::write(std::format(
-            "im_start_capture udid_fp={} render_limit={}x{} render_fps_limit={} play_audio={} volume={:.3f}",
+            "im_start_capture udid_fp={} render_limit={}x{} render_fps_limit={} play_audio={} volume={:.3f} request_device_audio={}",
             iPhoneMirror::logging::fingerprint(serial),
             preferences.render_max_width, preferences.render_max_height,
-            preferences.target_fps, preferences.play_audio, preferences.audio_volume));
+            preferences.target_fps, preferences.play_audio, preferences.audio_volume,
+            preferences.request_device_audio));
         if (preview_renderer) {
             preview_renderer->set_render_size_limit(
                 preferences.render_max_width, preferences.render_max_height);

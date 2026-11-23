@@ -1181,7 +1181,7 @@ CaptureSession::RunOpenState CaptureSession::prepare_run_open_log() noexcept {
     // failures here so the capture run can proceed without a diagnostic line.
     try {
         logging::write(std::format(
-            "capture_run begin device_fp={} backend={} product_type={} usb_display_size={}x{} display_size_source={} render_fps_limit={} audio={} volume={:.3f} decoder_policy={} color_policy={}", state.device_fp,
+            "capture_run begin device_fp={} backend={} product_type={} usb_display_size={}x{} display_size_source={} render_fps_limit={} audio={} volume={:.3f} request_device_audio={} decoder_policy={} color_policy={}", state.device_fp,
             usb_backend_ == UsbBackend::LibUsb0 ? "libusb0" :
             usb_backend_ == UsbBackend::UsbDk ? "usbdk" : "libusb1",
             product_type_ascii,
@@ -1190,6 +1190,7 @@ CaptureSession::RunOpenState CaptureSession::prepare_run_open_log() noexcept {
             target_fps(),
             play_audio_.load(std::memory_order_relaxed),
             audio_volume_.load(std::memory_order_relaxed),
+            preferences_.request_device_audio,
             media::decoder_preference_name(decoder_switch_.requested().preference),
             static_cast<unsigned>(preferences_.color_output_preference)));
     } catch (...) {
@@ -1234,9 +1235,11 @@ void CaptureSession::run(std::stop_token stop_token) noexcept {
             native_airplay_available, tablet);
     auto session_options = display_configuration.session_options;
     const bool adaptive_display = display_configuration.adaptive_reconfiguration;
-    // Always negotiate the audio stream. The playback toggle is deliberately
-    // local so it can be switched on again without restarting USB/QuickTime.
-    session_options.request_audio = true;
+    // The local playback toggle stays independent so it can be switched on
+    // again without restarting USB/QuickTime. request_device_audio=false is the
+    // separate, session-start choice that skips HPA1 so iOS keeps its own audio
+    // route (AirPods); it intentionally leaves the PC without source audio.
+    session_options.request_audio = preferences_.request_device_audio;
     if (preferences_.usb_projection_mode == UsbProjectionMode::AirPlay &&
         preferences_.usb_requested_width != 0 && preferences_.usb_requested_height != 0) {
         logging::write(std::format("advanced_usb_request={}x{}",
@@ -1672,7 +1675,7 @@ void CaptureSession::run(std::stop_token stop_token) noexcept {
             session_options = make_usb_display_configuration(preferences_.usb_projection_mode,
                 native.width, native.height, preferences_.usb_requested_width,
                 preferences_.usb_requested_height, true, true).session_options;
-            session_options.request_audio = true;
+            session_options.request_audio = preferences_.request_device_audio;
             protocol = quicktime::SessionProtocol(session_options);
             native_airplay_active.store(true, std::memory_order_release);
             logging::write("usb_projection native_airplay=true h264_444=true orientation=springboard");
@@ -2300,8 +2303,14 @@ void CaptureSession::run(std::stop_token stop_token) noexcept {
                 }
             }
             if (count == 0) {
-                request_fast_reconnect_for_missing_frame_rate();
-                detect_streaming_media_silence();
+                // Without an audio stream a static screen legitimately produces
+                // no USB traffic. The audio-liveness heuristics below would then
+                // reconnect or fail an otherwise healthy session, so skip them
+                // in phone-audio mode while keeping the handshake deadlines.
+                if (preferences_.request_device_audio) {
+                    request_fast_reconnect_for_missing_frame_rate();
+                    detect_streaming_media_silence();
+                }
                 if (!ping_recovery_attempted &&
                     protocol.state() == quicktime::SessionState::WaitingForPing &&
                     std::chrono::steady_clock::now() >= ping_recovery_deadline) {
@@ -2353,6 +2362,11 @@ void CaptureSession::run(std::stop_token stop_token) noexcept {
                 }
                 auto event = protocol.process(packet);
                 if (event.state == quicktime::SessionState::Error) throw std::runtime_error(event.warning);
+                // With device audio negotiation disabled the phone is expected
+                // to keep audio local. Drop anything it still sends so the PC
+                // stays silent and recording/output match the UI promise.
+                if (!preferences_.request_device_audio && event.audio_sample)
+                    event.audio_sample.reset();
                 if (!event.outbound.empty()) {
                     const auto reply_started = std::chrono::steady_clock::now();
                     for (const auto& response : event.outbound) usb->write(response, 1000);
@@ -2529,7 +2543,8 @@ void CaptureSession::run(std::stop_token stop_token) noexcept {
                             ? L"DRM_VIDEO_PROTECTED_AUDIO_ACTIVE"
                             : L"DRM_VIDEO_PROTECTED_AUDIO_INACTIVE";
                     snapshot_.video_frames = protocol.video_frames();
-                    snapshot_.audio_packets = protocol.audio_packets();
+                    snapshot_.audio_packets = preferences_.request_device_audio
+                        ? protocol.audio_packets() : 0;
                     const auto now = media_received_at;
                     const double fps_seconds = std::chrono::duration<double>(now - fps_sample_at).count();
                     if (fps_seconds >= 0.5) {
@@ -2551,7 +2566,8 @@ void CaptureSession::run(std::stop_token stop_token) noexcept {
                             snapshot_.height = protocol.video_format()->height;
                         }
                     }
-                    if (protocol.audio_format() && protocol.audio_format()->audio) {
+                    if (preferences_.request_device_audio &&
+                        protocol.audio_format() && protocol.audio_format()->audio) {
                         if (!video_protected || audio_active) {
                             snapshot_.audio_sample_rate = static_cast<std::uint32_t>(
                                 protocol.audio_format()->audio->sample_rate);
@@ -2569,8 +2585,10 @@ void CaptureSession::run(std::stop_token stop_token) noexcept {
             max_packet_batch_ms = std::max(max_packet_batch_ms,
                 std::chrono::duration<double, std::milli>(
                     std::chrono::steady_clock::now() - packet_batch_started).count());
-            request_fast_reconnect_for_missing_frame_rate();
-            detect_streaming_media_silence();
+            if (preferences_.request_device_audio) {
+                request_fast_reconnect_for_missing_frame_rate();
+                detect_streaming_media_silence();
+            }
             const auto probed_size = display_reconfigure.pending() ? 0 :
                 native_probe_size_.exchange(0, std::memory_order_acq_rel);
             if (adaptive_display && probed_size != 0 && !display_reconfigure.pending()) {

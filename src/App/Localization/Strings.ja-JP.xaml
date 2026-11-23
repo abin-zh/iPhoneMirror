@@ -239,6 +239,11 @@
     <system:String x:Key="ApplyVideoSettings">映像設定を適用</system:String>
     <system:String x:Key="PlayAudioWindows">Windowsで音声を再生</system:String>
     <system:String x:Key="PlaybackVolume">再生音量</system:String>
+    <system:String x:Key="KeepPhoneAudio">音声をiPhone側に残す（AirPods、実験）</system:String>
+    <system:String x:Key="KeepPhoneAudioHelp">iPhoneと音声ストリームをネゴシエートしないため、音声はiPhone側で出力され、AirPodsを選択できます。PC側にはiPhoneの音声が届かず、録画・配信・OBSにもiPhoneの音声トラックは含まれません。切り替えるとミラーリングを再接続します。このモードでは静止画面で自動再接続されません。必要に応じて画面を更新してください。</system:String>
+    <system:String x:Key="KeepPhoneAudioEnabled">iPhone側に音声を残しています。PC側にはiPhoneの音声トラックが届きません</system:String>
+    <system:String x:Key="KeepPhoneAudioDisabled">PC側でiPhoneの音声を受信する設定に戻しました</system:String>
+    <system:String x:Key="KeepPhoneAudioRestarting">設定を反映するためミラーリングを再接続しています…</system:String>
     <system:String x:Key="BluetoothWindowMouse">Bluetooth絶対位置（実験）</system:String>
     <system:String x:Key="BluetoothMouseSensitivity">Bluetoothマウスの感度</system:String>
     <system:String x:Key="BluetoothMouseSettingsTitle">リモート操作の設定</system:String>

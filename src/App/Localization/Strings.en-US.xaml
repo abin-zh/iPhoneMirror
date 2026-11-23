@@ -239,6 +239,11 @@
     <system:String x:Key="ApplyVideoSettings">Apply video settings</system:String>
     <system:String x:Key="PlayAudioWindows">Play audio on Windows</system:String>
     <system:String x:Key="PlaybackVolume">Playback volume</system:String>
+    <system:String x:Key="KeepPhoneAudio">Keep phone audio (AirPods, experimental)</system:String>
+    <system:String x:Key="KeepPhoneAudioHelp">Does not negotiate an audio stream with the iPhone, so audio stays on the phone and can be routed to AirPods. The computer receives no phone audio, and recording, streaming and OBS omit the phone track. Switching this option reconnects mirroring. Static screens do not trigger automatic reconnects in this mode; use Refresh to redraw.</system:String>
+    <system:String x:Key="KeepPhoneAudioEnabled">Phone audio is kept on the iPhone; the computer no longer receives the phone track</system:String>
+    <system:String x:Key="KeepPhoneAudioDisabled">Phone audio is sent to the computer again</system:String>
+    <system:String x:Key="KeepPhoneAudioRestarting">Reconnecting mirroring to apply the phone audio setting...</system:String>
     <system:String x:Key="BluetoothWindowMouse">Bluetooth absolute positioning (experimental)</system:String>
     <system:String x:Key="BluetoothMouseSensitivity">Bluetooth mouse sensitivity</system:String>
     <system:String x:Key="BluetoothMouseSettingsTitle">Reverse control settings</system:String>
