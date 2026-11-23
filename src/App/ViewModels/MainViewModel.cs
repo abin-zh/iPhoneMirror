@@ -81,6 +81,7 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
         uint RenderHeight,
         int FrameRate,
         bool PlayAudio,
+        bool RequestDeviceAudio,
         double Volume,
         uint AdvancedUsbWidth,
         uint AdvancedUsbHeight,
@@ -961,6 +962,7 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanChangeUsbProjectionMode));
             OnPropertyChanged(nameof(CanChangeVideoPipeline));
             OnPropertyChanged(nameof(CanChangeDecoderPipeline));
+            OnPropertyChanged(nameof(CanChangeKeepPhoneAudio));
             OnPropertyChanged(nameof(CanOpenImageSettings));
             NotifyMediaOutputStateChanged();
             foreach (var window in _imageSettingsWindows.Values.ToArray())
@@ -1159,6 +1161,54 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
             SetSettingsStatus(value ? "AudioPlaybackEnabled" : "AudioPlaybackMuted");
         }
     }
+
+    // Wired only. The inverse of the native skip flag: when enabled the app
+    // asks iOS to keep audio local, which lets AirPods stay selectable on the
+    // phone. It requires a reconnect because audio is negotiated at start.
+    public bool KeepPhoneAudio
+    {
+        get => SelectedDevice is { IsWireless: false, IsMediaCast: false } &&
+            CurrentDeviceSession?.RequestDeviceAudio == false;
+        set
+        {
+            var device = SelectedDevice;
+            if (device is null || device.IsWireless || device.IsMediaCast ||
+                IsSettingsInteractionBlocked)
+            {
+                OnPropertyChanged();
+                return;
+            }
+            var state = GetOrCreateDeviceState(device);
+            if (state.RequestDeviceAudio == !value) return;
+            var previous = state.RequestDeviceAudio;
+            state.RequestDeviceAudio = !value;
+            if (!PersistDeviceVideoPreferences(state))
+            {
+                state.RequestDeviceAudio = previous;
+                OnPropertyChanged();
+                return;
+            }
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanPlayAudioLocally));
+            AddDiagnosticLog(AppLog.Event("phone_audio_mode_selected",
+                ("keep_phone_audio", value), ("device", AppLog.Device(state.Udid)),
+                ("has_session", state.HasSession)));
+            if (state.HasSession)
+            {
+                SetSettingsStatus("KeepPhoneAudioRestarting");
+                _ = RestartUsbSessionAsync(device, state, "phone_audio");
+            }
+            else
+            {
+                SetSettingsStatus(value ? "KeepPhoneAudioEnabled" : "KeepPhoneAudioDisabled");
+            }
+        }
+    }
+
+    public bool CanChangeKeepPhoneAudio => SelectedDevice is not null &&
+        !IsWirelessSelected && !IsMediaCastSelected && !IsSettingsInteractionBlocked;
+
+    public bool CanPlayAudioLocally => !KeepPhoneAudio;
 
     private UsbProjectionMode CurrentUsbProjectionMode =>
         CurrentDeviceSession?.UsbProjectionMode ?? UsbProjectionMode.Demo;
@@ -4819,6 +4869,9 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(SelectedDecoderPreference));
         OnPropertyChanged(nameof(CanChangeVideoPipeline));
         OnPropertyChanged(nameof(CanChangeDecoderPipeline));
+        OnPropertyChanged(nameof(KeepPhoneAudio));
+        OnPropertyChanged(nameof(CanChangeKeepPhoneAudio));
+        OnPropertyChanged(nameof(CanPlayAudioLocally));
         OnPropertyChanged(nameof(AdvancedSettingsVisibility));
         OnPropertyChanged(nameof(PlaybackVolume));
         OnPropertyChanged(nameof(PlayAudio));
@@ -6789,6 +6842,7 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
             state.RenderHeight,
             state.FrameRate,
             state.PlayAudio,
+            state.RequestDeviceAudio,
             state.Volume,
             IsAdvancedMode ? state.AdvancedUsbWidth : 0,
             IsAdvancedMode ? state.AdvancedUsbHeight : 0,
@@ -6816,7 +6870,8 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
             settings.AdvancedUsbWidth, settings.AdvancedUsbHeight,
             (uint)settings.UsbProjectionMode,
             (uint)settings.DecoderPreference,
-            1U);
+            1U,
+            settings.RequestDeviceAudio);
         if (!created.Success) return created;
         var adjustments = _core.SetDeviceImageAdjustments(created.Handle!,
             settings.Brightness, settings.Contrast, settings.Saturation,
@@ -7128,6 +7183,7 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(CanChangeUsbProjectionMode));
         OnPropertyChanged(nameof(CanChangeVideoPipeline));
         OnPropertyChanged(nameof(CanChangeDecoderPipeline));
+        OnPropertyChanged(nameof(CanChangeKeepPhoneAudio));
         OnPropertyChanged(nameof(CanOpenImageSettings));
     }
 

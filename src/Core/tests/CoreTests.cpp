@@ -875,6 +875,25 @@ void test_session_protocol() {
         "session emits the final HPD0 after release notifications");
 }
 
+void test_session_protocol_without_device_audio() {
+    using namespace iPhoneMirror::quicktime;
+    SessionProtocol session(SessionOptions{.requested_width = 1920,
+        .requested_height = 1080, .request_audio = false});
+
+    (void)session.process(decode_framed(make_ping()));
+    auto event = session.process(decode_framed(
+        read_fixture("fixtures/quicktime_video_hack/cwpa-request1")));
+    check(event.state == SessionState::Negotiating && event.outbound.size() == 2 &&
+        decode_framed(event.outbound[0]).subtype == fourcc('h', 'p', 'd', '1') &&
+        decode_framed(event.outbound[1]).kind == PacketKind::Reply,
+        "phone-audio mode advertises the display and clock without HPA1");
+
+    const auto stop = session.stop_messages();
+    check(stop.size() == 1 && decode_framed(stop.front()).subtype ==
+        fourcc('h', 'p', 'd', '0'),
+        "phone-audio mode releases only the display and never sends HPA0");
+}
+
 void test_usb_projection_modes() {
     using namespace iPhoneMirror::capture;
 
@@ -2372,7 +2391,7 @@ void test_wireless_i420_conversion() {
         "wireless conversion rejects truncated planes");
     check(sizeof(iPhoneMirror::wireless::MessageHeader) == 392 &&
         sizeof(iPhoneMirror::CaptureStatus) == 464 &&
-        iPhoneMirror::ApiVersion == 18 &&
+        iPhoneMirror::ApiVersion == 19 &&
         header.magic == iPhoneMirror::wireless::IpcMagic &&
         header.version == iPhoneMirror::wireless::IpcVersion &&
         iPhoneMirror::wireless::IpcVersion == 8,
@@ -2943,6 +2962,7 @@ int main(int argc, char** argv) {
         test_coremedia();
         test_upstream_capture_fixtures();
         test_session_protocol();
+        test_session_protocol_without_device_audio();
         test_usb_projection_modes();
         test_apple_usb_serial_matching();
         test_apple_usb_filter_safety();

@@ -95,6 +95,10 @@ struct CapturePreferences {
     float contrast{1.0F};
     float saturation{1.0F};
     float gamma{1.0F};
+    // Wired QuickTime only. When false the video display is negotiated without
+    // HPA1 so iOS keeps routing audio locally (AirPods); the PC intentionally
+    // receives and renders no source audio.
+    bool request_device_audio{true};
 };
 
 enum class DecoderSwitchPhase : std::uint32_t {

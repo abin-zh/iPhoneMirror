@@ -16,6 +16,7 @@ All notable changes to iPhoneMirror are documented here. The project follows
 
 ### Added
 
+- Add an experimental wired setting, "Keep phone audio (AirPods)": the app skips QuickTime audio negotiation so iOS keeps its own audio route and AirPods stay selectable on the phone. The PC intentionally receives no phone audio, so local playback, recording, streaming and OBS carry video only. Changing the option reconnects the wired session. Workspace builds require the matching native core (API 19).
 - Customize the top preview toolbar with a focused editor, a component library, direct drag ordering, hide/restore actions, icon-only display, cancel and persistent save.
 - Add USB device context actions for copying device information, restarting and shutting down the clicked device, with confirmation for power actions; remove the old simultaneous-mirroring and sleep entries.
 - Expose the Automation API screenshot budget in Developer tools, configurable from 1 to 30 requests per second. New configurations default to 30; existing saved limits are preserved.

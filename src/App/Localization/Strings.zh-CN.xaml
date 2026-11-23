@@ -239,6 +239,11 @@
     <system:String x:Key="ApplyVideoSettings">应用画面设置</system:String>
     <system:String x:Key="PlayAudioWindows">在 Windows 播放声音</system:String>
     <system:String x:Key="PlaybackVolume">播放音量</system:String>
+    <system:String x:Key="KeepPhoneAudio">让手机保留声音（AirPods，实验）</system:String>
+    <system:String x:Key="KeepPhoneAudioHelp">不向 iPhone 协商音频流，声音留在手机本机输出，可在手机上选择 AirPods。电脑端将没有手机声音，录制、推流和 OBS 也不包含手机音轨；切换后会重新连接投屏。该模式下画面静止时不会自动重连，可用“刷新画面”重绘。</system:String>
+    <system:String x:Key="KeepPhoneAudioEnabled">已启用手机保留声音；电脑端不再接收手机音轨</system:String>
+    <system:String x:Key="KeepPhoneAudioDisabled">已关闭手机保留声音；电脑端恢复接收手机音轨</system:String>
+    <system:String x:Key="KeepPhoneAudioRestarting">正在重新连接投屏以应用手机声音设置…</system:String>
     <system:String x:Key="BluetoothWindowMouse">蓝牙绝对位置（实验）</system:String>
     <system:String x:Key="BluetoothMouseSensitivity">蓝牙鼠标灵敏度</system:String>
     <system:String x:Key="BluetoothMouseSettingsTitle">反向控制设置</system:String>

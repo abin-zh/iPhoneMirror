@@ -17,7 +17,7 @@
 
 namespace iPhoneMirror {
 
-constexpr std::uint32_t ApiVersion = 18;
+constexpr std::uint32_t ApiVersion = 19;
 using SessionHandle = std::uint64_t;
 constexpr std::size_t MaxUdid = 128;
 constexpr std::size_t MaxName = 128;
@@ -210,6 +210,10 @@ struct AudioPacketInfo {
 // selects USB projection mode (0=demo, 1=AirPlay, 2=Aisi-compatible), word 3
 // selects decoder policy (0=auto, 1=hardware preferred, 2=software compatible),
 // and word 4 selects color output (0=auto, 1=SDR tone-map, 2=prefer HDR).
+// skip_device_audio defaults to 0 (negotiate audio, historical behavior). Set
+// it to 1 for wired QuickTime capture to skip HPA1 audio negotiation so iOS
+// keeps its own audio route (for example AirPods); the PC then receives no
+// source audio. Zero-initialized options therefore keep the old behavior.
 struct CaptureOptions {
     std::uint32_t struct_size;
     std::uint32_t api_version;
@@ -219,6 +223,7 @@ struct CaptureOptions {
     std::int32_t play_audio;
     float audio_volume; // Linear gain in the inclusive range [0.0, 1.0].
     std::uint32_t reserved[5];
+    std::int32_t skip_device_audio;
 };
 
 enum class MediaCastCommand : std::uint32_t {
