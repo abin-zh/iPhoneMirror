@@ -1,7 +1,10 @@
 @{
     Version = '8.1.2'
     ArchiveName = 'ffmpeg-8.1.2-essentials_build.zip'
-    DownloadUrl = 'https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.2-essentials_build.zip'
+    # gyan.dev prunes older package directories, which broke CI with HTTP 404.
+    # The provider mirrors the same, hash-pinned archive on GitHub releases,
+    # where assets are retained.
+    DownloadUrl = 'https://github.com/GyanD/codexffmpeg/releases/download/8.1.2/ffmpeg-8.1.2-essentials_build.zip'
     ArchiveSha256 = 'DB580001CAA24AC104C8CB856CD113A87B0A443F7BDF47D8C12B1D740584A2EC'
     Files = @{
         'ffmpeg.exe' = '1326DDE4C84FF1F96FE6B8916C5BED29E163E9B5DCCF995F6F3DB069D143EC5E'
