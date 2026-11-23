@@ -52,6 +52,10 @@ internal sealed class DeviceCaptureState
     internal bool HasAppliedVideoSettings { get; private set; }
     internal bool HasSession => Handle is not null && !Handle.IsClosed && !Handle.IsInvalid;
     internal bool ErrorShown { get; set; }
+    // AirPlay mirrors pause when the sender sleeps or locks. This is the only
+    // trustworthy "display off" signal the host receives, so it gates the
+    // side-button wake pulse instead of guessing from stalled frames.
+    internal bool MirrorPaused { get; set; }
     internal bool VideoProtected { get; private set; }
     internal bool ProtectedAudioActive { get; private set; }
     internal uint ProtectedAudioSampleRate { get; private set; }
@@ -78,6 +82,7 @@ internal sealed class DeviceCaptureState
     {
         AutoControlAttempted = false;
         AutoControlStreaming = false;
+        MirrorPaused = false;
         VideoProtected = false;
         ProtectedAudioActive = false;
         ProtectedAudioSampleRate = 0;

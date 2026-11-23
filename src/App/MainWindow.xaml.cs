@@ -650,6 +650,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (_activeControlWindow != 0) return;
         var udid = _viewModel.SelectedDevice?.Udid;
+        if (TryHandleScreenOffPointer(e, udid)) return;
         if (!IsUsbControlActive && HandleWindowBluetoothPointer(e, udid)) return;
         if (TryHandlePointerShortcut(e, udid)) return;
         if (IsUsbControlActive)
@@ -1331,6 +1332,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         Controls.PreviewPointerEventArgs e)
     {
         if (e.Kind == Controls.PreviewPointerKind.Reset) _ = ResetPreviewTouchesAsync(udid);
+        if (TryHandleScreenOffPointer(e, udid)) return;
         // Bluetooth Raw Input owns motion, buttons and wheel across both
         // surfaces. Keep native reset messages, but discard legacy duplicates.
         if (_rawMouseInputEnabled && IsBluetoothControlActiveFor(udid) &&
