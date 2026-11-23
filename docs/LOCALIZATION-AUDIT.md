@@ -1248,7 +1248,7 @@
 | ShortcutSettingsHome | 回到桌面 | 返回主畫面 | 返回主畫面 | Go to Home Screen | ホーム画面に移動 | ✅ 完全一致 | 保留 |
 | ShortcutSettingsInvalid | 请选择有效快捷键。F12、Windows 键组合及单独修饰键不可用。 | 請選擇有效快捷鍵。F12、Windows 鍵組合及單獨修飾鍵不可用。 | 請選擇有效快速鍵。F12、Windows 鍵組合及單獨修飾鍵不可用。 | Choose a valid shortcut. F12, Windows-key shortcuts, and modifier-only keys are unavailable. | 有効なショートカットを選んでください。F12、Windowsキーを使うショートカット、修飾キーだけの指定は使えません。 | ✅ 完全一致 | 保留 |
 | ShortcutSettingsKeyboardShortcuts | 显示键盘快捷键 | 顯示鍵盤快速鍵 | 顯示鍵盤快速鍵 | Show Keyboard Shortcuts | キーボードショートカットを表示 | ✅ 完全一致 | 保留；静态未发现引用，保留待后续调用核对 |
-| ShortcutSettingsLockScreen | 锁定屏幕 | 鎖定螢幕 | 鎖定螢幕 | Lock Screen | ロック画面 | ✅ 完全一致 | 保留 |
+| ShortcutSettingsLockScreen | 锁屏 / 唤醒 | 鎖定螢幕 / 喚醒 | 鎖定螢幕 / 喚醒 | Lock / Wake Screen | 画面ロック / スリープ解除 | ✅ 完全一致 | 保留 |
 | ShortcutSettingsNextApp | 切换到下一个应用 | 切換至下一個 App | 切換至下一個 App | Switch to Next App | 次のAppに切り替える | ✅ 完全一致 | 保留；静态未发现引用，保留待后续调用核对 |
 | ShortcutSettingsNotificationCenter | 打开通知栏 | 開啟通知中心 | 開啟通知中心 | Open Notification Center | 通知センターを開く | ✅ 完全一致 | 保留 |
 | ShortcutSettingsPreviousApp | 切换到上一个应用 | 切換至上一個 App | 切換至上一個 App | Switch to Previous App | 前のAppに切り替える | ✅ 完全一致 | 保留；静态未发现引用，保留待后续调用核对 |
@@ -1599,6 +1599,7 @@
 | WirelessStreaming | AirPlay 无线投屏中 | AirPlay 無線螢幕鏡像中 | AirPlay 無線螢幕鏡像中 | Wireless AirPlay mirroring | 無線AirPlayミラーリング | ✅ 完全一致 | 保留 |
 | WirelessUxPlayStartupFailed | UxPlay 启动后立即退出。请修复 UxPlay 运行时后重新应用无线设置。 | UxPlay 啟動後立即結束。請修復 UxPlay 執行階段後重新套用無線設定。 | UxPlay 啟動後立即結束。請修復 UxPlay 執行階段後重新套用無線設定。 | UxPlay stopped immediately after startup. Repair the UxPlay runtime, then apply the wireless settings again. | UxPlayが起動直後に停止しました。UxPlayのランタイムを修復してから、無線設定をもう一度適用してください。 | ✅ 完全一致 | 保留 |
 | WirelessVideoPaused | iPhone 已暂停画面传输 | iPhone 已暫停畫面傳輸 | iPhone 已暫停畫面傳輸 | iPhone paused video transmission | iPhoneが映像の送信を一時停止しました | ✅ 完全一致 | 保留 |
+| WirelessVideoPausedWakeHint | 点击投屏画面可唤醒屏幕。 | 點擊投屏畫面可喚醒螢幕。 | 點擊鏡像畫面可喚醒螢幕。 | Click the preview to wake the display. | プレビューをクリックすると画面をスリープ解除できます。 | ✅ 完全一致 | 保留 |
 | WirelessVideoReconnecting | 正在恢复 AirPlay 画面连接… | 正在恢復 AirPlay 畫面連線… | 正在恢復 AirPlay 畫面連線… | Restoring the AirPlay video connection… | AirPlayの映像接続を復旧しています… | ✅ 完全一致 | 保留 |
 | WirelessWaitingDevice | AirPlay 接收端已启动，请在 iPhone 控制中心选择屏幕镜像。 | AirPlay 接收端已啟動，請在 iPhone 控制中心選擇螢幕鏡像。 | AirPlay 接收端已啟動，請在 iPhone 控制中心選擇螢幕鏡像。 | The AirPlay receiver is running. Choose Screen Mirroring in iPhone Control Center. | AirPlayレシーバーが動作中です。iPhoneのコントロールセンターで「画面ミラーリング」を選んでください。 | ✅ 完全一致 | 保留 |
 | WizardActionHintDoubleTap | 连续点击两次 | 連續點按兩次 | 連續點按兩次 | Tap twice | 2回タップ | ✅ 完全一致 | 保留；静态未发现引用，保留待后续调用核对 |

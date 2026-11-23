@@ -343,7 +343,7 @@
     <system:String x:Key="ShortcutSettingsAppSwitcher">Appスイッチャーを開く</system:String>
     <system:String x:Key="ShortcutSettingsHome">ホーム画面に移動</system:String>
     <system:String x:Key="ShortcutSettingsBossKey">ボスキー（ウィンドウの非表示/表示）</system:String>
-    <system:String x:Key="ShortcutSettingsLockScreen">ロック画面</system:String>
+    <system:String x:Key="ShortcutSettingsLockScreen">画面ロック / スリープ解除</system:String>
     <system:String x:Key="ShortcutSettingsVolumeUp">音量を上げる</system:String>
     <system:String x:Key="ShortcutSettingsVolumeDown">音量を下げる</system:String>
     <system:String x:Key="ShortcutSettingsDock">Dockを表示 (iPad)</system:String>
@@ -677,6 +677,7 @@
     <system:String x:Key="WirelessConnecting">AirPlayデバイスが接続中です…</system:String>
     <system:String x:Key="WirelessStreaming">無線AirPlayミラーリング</system:String>
     <system:String x:Key="WirelessVideoPaused">iPhoneが映像の送信を一時停止しました</system:String>
+    <system:String x:Key="WirelessVideoPausedWakeHint">プレビューをクリックすると画面をスリープ解除できます。</system:String>
     <system:String x:Key="WirelessVideoReconnecting">AirPlayの映像接続を復旧しています…</system:String>
     <system:String x:Key="WirelessMusicTitle">AirPlayミュージック</system:String>
     <system:String x:Key="WirelessMusicStreaming">AirPlayで音楽を再生中</system:String>

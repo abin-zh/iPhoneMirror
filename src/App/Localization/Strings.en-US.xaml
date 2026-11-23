@@ -343,7 +343,7 @@
     <system:String x:Key="ShortcutSettingsAppSwitcher">Open App Switcher</system:String>
     <system:String x:Key="ShortcutSettingsHome">Go to Home Screen</system:String>
     <system:String x:Key="ShortcutSettingsBossKey">Boss key (hide / show windows)</system:String>
-    <system:String x:Key="ShortcutSettingsLockScreen">Lock Screen</system:String>
+    <system:String x:Key="ShortcutSettingsLockScreen">Lock / Wake Screen</system:String>
     <system:String x:Key="ShortcutSettingsVolumeUp">Volume up</system:String>
     <system:String x:Key="ShortcutSettingsVolumeDown">Volume down</system:String>
     <system:String x:Key="ShortcutSettingsDock">Show Dock (iPad)</system:String>
@@ -677,6 +677,7 @@
     <system:String x:Key="WirelessConnecting">An AirPlay device is connecting…</system:String>
     <system:String x:Key="WirelessStreaming">Wireless AirPlay mirroring</system:String>
     <system:String x:Key="WirelessVideoPaused">iPhone paused video transmission</system:String>
+    <system:String x:Key="WirelessVideoPausedWakeHint">Click the preview to wake the display.</system:String>
     <system:String x:Key="WirelessVideoReconnecting">Restoring the AirPlay video connection…</system:String>
     <system:String x:Key="WirelessMusicTitle">AirPlay Music</system:String>
     <system:String x:Key="WirelessMusicStreaming">Playing music through AirPlay</system:String>

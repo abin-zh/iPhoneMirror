@@ -5,6 +5,10 @@ All notable changes to iPhoneMirror are documented here. The project follows
 
 ## [Unreleased]
 
+### Added
+
+- Clicking a paused AirPlay preview now sends one side-button pulse through reverse control to wake the sleeping iPhone; the same pulse is available from the existing lock shortcut, now labeled "Lock / Wake Screen".
+
 ### Changed
 
 - Independent preview windows now use a hover-revealed drag bar instead of a fixed/unfixed toggle: dragging the bar moves the window, its right-hand button toggles full screen, and the picture area stays available to reverse control.

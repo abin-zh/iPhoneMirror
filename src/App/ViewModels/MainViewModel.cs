@@ -4884,6 +4884,8 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
             }
             if (!IsCurrentSession(state, h)) continue;
             TryStartMirroringControl(state, status);
+            state.MirrorPaused = DeviceViewModel.IsWirelessUdid(state.Udid) &&
+                status.Message == "AirPlay video paused";
             if (status.Width != 0 && status.Height != 0)
             {
                 ObserveAutomationGeometry(state.Udid, status.Width, status.Height);
@@ -5029,6 +5031,7 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
 
     private void ResetPreviewState()
     {
+        if (CurrentDeviceSession is { } resetState) resetState.MirrorPaused = false;
         Set(ref _wirelessVideoStalled, false, nameof(CaptureWarningVisibility));
         SetAudioOnlyAirPlay(false);
         OnPropertyChanged(nameof(IsVideoProtected));
@@ -6191,7 +6194,12 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
 
     private void ApplyCaptureStatus(NativeCaptureStatus status)
     {
-        if (CurrentDeviceSession is { } capture) TryStartMirroringControl(capture, status);
+        if (CurrentDeviceSession is { } capture)
+        {
+            TryStartMirroringControl(capture, status);
+            capture.MirrorPaused = DeviceViewModel.IsWirelessUdid(capture.Udid) &&
+                status.Message == "AirPlay video paused";
+        }
         Set(ref _wirelessVideoStalled,
             IsWirelessSelected && status.Message == "AirPlay video stalled",
             nameof(CaptureWarningVisibility));
@@ -6234,7 +6242,8 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
         if (!captureActive && status.State is CaptureState.Idle or CaptureState.Stopped or CaptureState.Error)
             _activeCaptureUdid = null;
         if (status.State is not CaptureState.Idle || SelectedDevice is null)
-            CaptureStatus = GetCaptureStatusText(status, IsWirelessSelected);
+            CaptureStatus = GetCaptureStatusText(status, IsWirelessSelected,
+                CanWakeScreen(SelectedDevice?.Udid));
         if (status.State == CaptureState.Error &&
             CurrentDeviceSession is { ErrorShown: false, Handle: { } failedHandle } failedSession)
         {
@@ -6657,10 +6666,14 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
         return false;
     }
 
-    private static string GetCaptureStatusText(NativeCaptureStatus status, bool wireless)
+    private static string GetCaptureStatusText(NativeCaptureStatus status, bool wireless,
+        bool canWakeScreen)
     {
         if (wireless && status.Message == "AirPlay video paused")
-            return LocalizationService.Get("WirelessVideoPaused");
+            return canWakeScreen
+                ? LocalizationService.Join(" ", [LocalizationService.Get("WirelessVideoPaused"),
+                    LocalizationService.Get("WirelessVideoPausedWakeHint")])
+                : LocalizationService.Get("WirelessVideoPaused");
         if (wireless && status.Message == "AirPlay video reconnecting")
             return LocalizationService.Get("WirelessVideoReconnecting");
         if (wireless && status.Message == "AirPlay video stalled")

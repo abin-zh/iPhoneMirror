@@ -343,7 +343,7 @@
     <system:String x:Key="ShortcutSettingsAppSwitcher">打开多任务</system:String>
     <system:String x:Key="ShortcutSettingsHome">回到桌面</system:String>
     <system:String x:Key="ShortcutSettingsBossKey">老板键（隐藏 / 显示窗口）</system:String>
-    <system:String x:Key="ShortcutSettingsLockScreen">锁定屏幕</system:String>
+    <system:String x:Key="ShortcutSettingsLockScreen">锁屏 / 唤醒</system:String>
     <system:String x:Key="ShortcutSettingsVolumeUp">音量+</system:String>
     <system:String x:Key="ShortcutSettingsVolumeDown">音量-</system:String>
     <system:String x:Key="ShortcutSettingsDock">显示 Dock (iPad)</system:String>
@@ -677,6 +677,7 @@
     <system:String x:Key="WirelessConnecting">AirPlay 设备正在连接…</system:String>
     <system:String x:Key="WirelessStreaming">AirPlay 无线投屏中</system:String>
     <system:String x:Key="WirelessVideoPaused">iPhone 已暂停画面传输</system:String>
+    <system:String x:Key="WirelessVideoPausedWakeHint">点击投屏画面可唤醒屏幕。</system:String>
     <system:String x:Key="WirelessVideoReconnecting">正在恢复 AirPlay 画面连接…</system:String>
     <system:String x:Key="WirelessMusicTitle">AirPlay 音乐</system:String>
     <system:String x:Key="WirelessMusicStreaming">正在通过 AirPlay 播放音乐</system:String>
